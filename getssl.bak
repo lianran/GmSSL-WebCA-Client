@@ -333,7 +333,7 @@ check_config() { # check the config files for all obvious errors
     config_errors=true
   fi
   case "$PRIVATE_KEY_ALG" in
-    rsa|prime256v1|secp384r1|secp521r1|sm2p256v1)
+    rsa|prime256v1|secp384r1|secp521r1)
       debug "checked PRIVATE_KEY_ALG " ;;
     *)
       info "${DOMAIN}: invalid PRIVATE_KEY_ALG - $PRIVATE_KEY_ALG"
@@ -588,7 +588,6 @@ copy_file_to_location() { # copies a file, using scp, sftp or ftp if required.
 create_csr() { # create a csr using a given key (if it doesn't already exist)
   csr_file=$1
   csr_key=$2
-  key_type=$3
   # check if domain csr exists - if not then create it
   if [[ -s "$csr_file" ]]; then
     debug "domain csr exists at - $csr_file"
@@ -628,17 +627,7 @@ create_csr() { # create a csr using a given key (if it doesn't already exist)
     if [[ "$OCSP_MUST_STAPLE" == "true" ]]; then
       printf "\n1.3.6.1.5.5.7.1.24 = DER:30:03:02:01:05" >> "$tmp_conf"
     fi
-    case "$key_type" in
-      sm2p256v1)
-        echo "use the gmssl to generate a csr and use the absolute path for config"
-        echo "so you should cp the san.cnf and /demoCA to the current directory"
-        pwd
-        #gmssl req -new -sm3 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config san.cnf > "$csr_file";;
-        gmssl req -new -sm3 -key "$csr_key" -config san.cnf -subj "$CSR_SUBJECT" > "$csr_file";;
-      *)
-        openssl req -new -sha256 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config "$tmp_conf" > "$csr_file";;
-    esac
-    
+    openssl req -new -sha256 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config "$tmp_conf" > "$csr_file"
     rm -f "$tmp_conf"
   fi
 }
@@ -659,9 +648,6 @@ create_key() { # create a domain key (if it doesn't already exist)
         openssl genrsa "$key_len" > "$key_loc";;
       prime256v1|secp384r1|secp521r1)
         openssl ecparam -genkey -name "$key_type" > "$key_loc";;
-      sm2p256v1)
-        echo "generate a sm2p256v1 key using gmssl"
-        gmssl ecparam -genkey -name "$key_type" > "$key_loc";;
       *)
         error_exit "unknown private key algorithm type $key_loc";;
     esac
@@ -885,7 +871,6 @@ get_os() { # function to get the current Operating System
 
 get_signing_params() { # get signing parameters from key
   skey=$1
-  info $skey
   if openssl rsa -in "${skey}" -noout 2>/dev/null ; then # RSA key
     pub_exp64=$(openssl rsa -in "${skey}" -noout -text \
                 | grep publicExponent \
@@ -902,7 +887,6 @@ get_signing_params() { # get signing parameters from key
     jwkalg="RS256"
     signalg="sha256"
   elif openssl ec -in "${skey}" -noout 2>/dev/null ; then # Elliptic curve key.
-    echo "!!!! ec"
     crv="$(openssl ec -in  "$skey" -noout -text 2>/dev/null | awk '$2 ~ "CURVE:" {print $3}')"
     if [[ -z "$crv" ]]; then
       gsp_keytype="$(openssl ec -in  "$skey" -noout -text 2>/dev/null \
@@ -1470,7 +1454,6 @@ requires sed
 requires sort
 requires mktemp
 
-
 # Check if upgrades are available (unless they have specified -U to ignore Upgrade checks)
 if [[ $_UPGRADE_CHECK -eq 1 ]]; then
   check_getssl_upgrade
@@ -1783,10 +1766,10 @@ debug "created SAN list = $SANLIST"
 
 #create CSR's
 if [[ "$DUAL_RSA_ECDSA" == "false" ]]; then
-  create_csr "$DOMAIN_DIR/${DOMAIN}.csr" "$DOMAIN_DIR/${DOMAIN}.key" "rsa"
+  create_csr "$DOMAIN_DIR/${DOMAIN}.csr" "$DOMAIN_DIR/${DOMAIN}.key"
 else
-  create_csr "$DOMAIN_DIR/${DOMAIN}.csr" "$DOMAIN_DIR/${DOMAIN}.key" "rsa"
-  create_csr "$DOMAIN_DIR/${DOMAIN}.ec.csr" "$DOMAIN_DIR/${DOMAIN}.ec.key" "${PRIVATE_KEY_ALG}"
+  create_csr "$DOMAIN_DIR/${DOMAIN}.csr" "$DOMAIN_DIR/${DOMAIN}.key"
+  create_csr "$DOMAIN_DIR/${DOMAIN}.ec.csr" "$DOMAIN_DIR/${DOMAIN}.ec.key"
 fi
 
 # use account key to register with CA
