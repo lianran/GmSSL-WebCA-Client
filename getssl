@@ -633,8 +633,8 @@ create_csr() { # create a csr using a given key (if it doesn't already exist)
         echo "use the gmssl to generate a csr and use the absolute path for config"
         echo "so you should cp the san.cnf and /demoCA to the current directory"
         pwd
-        #gmssl req -new -sm3 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config san.cnf > "$csr_file";;
-        gmssl req -new -sm3 -key "$csr_key" -config san.cnf -subj "$CSR_SUBJECT" > "$csr_file";;
+        gmssl req -new -sm3 -key "$csr_key" -subj /C=CN/ST=HB/L=SJZ/O=CCIT/OU=CCIT/CN=local.org/emailAddress=fym0121@163.com -reqexts SAN -config "$tmp_conf" > "$csr_file";;
+        #gmssl req -new -sm3 -key "$csr_key" -config san.cnf -subj "$CSR_SUBJECT" > "$csr_file";;
       *)
         openssl req -new -sha256 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config "$tmp_conf" > "$csr_file";;
     esac
@@ -661,7 +661,8 @@ create_key() { # create a domain key (if it doesn't already exist)
         openssl ecparam -genkey -name "$key_type" > "$key_loc";;
       sm2p256v1)
         echo "generate a sm2p256v1 key using gmssl"
-        gmssl ecparam -genkey -name "$key_type" > "$key_loc";;
+        #gmssl ecparam -genkey -name "$key_type" > "$key_loc";;
+        gmssl ecparam -genkey -name prime256v1 > "$key_loc";;
       *)
         error_exit "unknown private key algorithm type $key_loc";;
     esac
