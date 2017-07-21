@@ -1,4 +1,4 @@
-# getssl
+# get-sm2-cert
 
 This project is forked from [srvrco/getssl](https://github.com/srvrco/getssl) and depends on the [GmSSL](http://gmssl.org).
 
@@ -11,7 +11,7 @@ This doc just a simple guide to obtain SSL SM2 cert and you can learn how to use
 You'll find the latest version in the git repository:
 
 ```
-git clone https://github.com/lianran/get_sm2_cert.git
+git clone https://github.com/lianran/get-sm2-cert.git
 ```
 
 In addition you must install the GmSSL and you can find the guide from [here](http://gmssl.org).
