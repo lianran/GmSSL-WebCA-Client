@@ -11,7 +11,7 @@ This doc just a simple guide to obtain SSL SM2 cert and you can learn how to use
 You'll find the latest version in the git repository:
 
 ```
-git clone https://github.com/lianran/getssl.git
+git clone https://github.com/lianran/get_sm2_cert.git
 ```
 
 In addition you must install the GmSSL and you can find the guide from [here](http://gmssl.org).
