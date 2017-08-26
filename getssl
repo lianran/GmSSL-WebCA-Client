@@ -598,7 +598,7 @@ create_csr() { # create a csr using a given key (if it doesn't already exist)
     else
       alldomains=$(echo "$DOMAIN,$SANS" | sed -e 's/ //g; s/,$//; y/,/\n/' | sort -u)
     fi
-    domains_in_csr=$(openssl req -text -noout -in "$csr_file" \
+    domains_in_csr=$(gmssl req -text -noout -in "$csr_file" \
         | sed -n -e 's/^ *Subject: .* CN=\([A-Za-z0-9.-]*\).*$/\1/p; /^ *DNS:.../ { s/ *DNS://g; y/,/\n/; p; }' \
         | sort -u)
     for d in $alldomains; do
@@ -624,20 +624,21 @@ create_csr() { # create a csr using a given key (if it doesn't already exist)
     cat "$SSLCONF" > "$tmp_conf"
     printf "[SAN]\n%s" "$SANLIST" >> "$tmp_conf"
     # add OCSP Must-Staple to the domain csr
-    # if openssl version >= 1.1.0 one can also use "tlsfeature = status_request"
+    # if gmssl version >= 1.3.0 one can also use "tlsfeature = status_request"
     if [[ "$OCSP_MUST_STAPLE" == "true" ]]; then
       printf "\n1.3.6.1.5.5.7.1.24 = DER:30:03:02:01:05" >> "$tmp_conf"
     fi
     case "$key_type" in
       sm2p256v1)
-        echo "use the gmssl to generate a csr and use the absolute path for config"
-        echo "so you should cp the san.cnf and /demoCA to the current directory"
-        pwd
+        #echo "use the gmssl to generate a csr and use the absolute path for config"
+        #echo "so you should cp the san.cnf and /demoCA to the current directory"
+        #pwd
+        #echo $tmp_conf
         #gmssl req -new -sm3 -key "$csr_key" -subj /C=CN/ST=HB/L=SJZ/O=CCIT/OU=CCIT/CN=${DOMAIN}/emailAddress=fym0121@163.com -reqexts SAN -config "$tmp_conf" > "$csr_file";;
         gmssl req -new -sm3 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config "$tmp_conf" > "$csr_file";;
         #gmssl req -new -sm3 -key "$csr_key" -config san.cnf -subj "$CSR_SUBJECT" > "$csr_file";;
       *)
-        openssl req -new -sha256 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config "$tmp_conf" > "$csr_file";;
+        gmssl req -new -sha256 -key "$csr_key" -subj "$CSR_SUBJECT" -reqexts SAN -config "$tmp_conf" > "$csr_file";;
     esac
     
     rm -f "$tmp_conf"
@@ -657,9 +658,9 @@ create_key() { # create a domain key (if it doesn't already exist)
     info "creating key - $key_loc"
     case "$key_type" in
       rsa)
-        openssl genrsa "$key_len" > "$key_loc";;
+        gmssl genrsa "$key_len" > "$key_loc";;
       prime256v1|secp384r1|secp521r1)
-        openssl ecparam -genkey -name "$key_type" > "$key_loc";;
+        gmssl ecparam -genkey -name "$key_type" > "$key_loc";;
       sm2p256v1)
         echo "generate a sm2p256v1 key using gmssl"
         #gmssl ecparam -genkey -name "$key_type" > "$key_loc";;
@@ -818,7 +819,7 @@ get_certificate() { # get certificate for csr, if all domains validated.
   gc_certfile=$2    # The filename for the certificate
   gc_cafile=$3      # The filename for the CA certificate
 
-  der=$(openssl req -in "$gc_csr" -outform DER | urlbase64)
+  der=$(gmssl req -in "$gc_csr" -outform DER | urlbase64)
   debug "der $der"
   send_signed_request "$URL_new_cert" "{\"resource\": \"new-cert\", \"csr\": \"$der\"}" "needbase64"
 
@@ -827,14 +828,14 @@ get_certificate() { # get certificate for csr, if all domains validated.
   debug "certdata location = $CertData"
   if [[ "$CertData" ]] ; then
     echo -----BEGIN CERTIFICATE----- > "$gc_certfile"
-    curl --silent "$CertData" | openssl base64 -e  >> "$gc_certfile"
+    curl --silent "$CertData" | gmssl base64 -e  >> "$gc_certfile"
     echo -----END CERTIFICATE-----  >> "$gc_certfile"
     info "Certificate saved in $CERT_FILE"
   fi
 
   # If certificate wasn't a valid certificate, error exit.
   if [[ -z "$CertData" ]] ; then
-    response2=$(echo "$response" | fold -w64 |openssl base64 -d)
+    response2=$(echo "$response" | fold -w64 |gmssl base64 -d)
     debug "response was $response"
     error_exit "Sign failed: $(echo "$response2" | grep "detail")"
   fi
@@ -847,7 +848,7 @@ get_certificate() { # get certificate for csr, if all domains validated.
                | sed 's/>//g')
   if [[ "$IssuerData" ]] ; then
     echo -----BEGIN CERTIFICATE----- > "$gc_cafile"
-    curl --silent "$IssuerData" | openssl base64 -e  >> "$gc_cafile"
+    curl --silent "$IssuerData" | gmssl base64 -e  >> "$gc_cafile"
     echo -----END CERTIFICATE-----  >> "$gc_cafile"
     info "The intermediate CA cert is in $gc_cafile"
   fi
@@ -888,14 +889,14 @@ get_os() { # function to get the current Operating System
 get_signing_params() { # get signing parameters from key
   skey=$1
   info $skey
-  if openssl rsa -in "${skey}" -noout 2>/dev/null ; then # RSA key
-    pub_exp64=$(openssl rsa -in "${skey}" -noout -text \
+  if gmssl rsa -in "${skey}" -noout 2>/dev/null ; then # RSA key
+    pub_exp64=$(gmssl rsa -in "${skey}" -noout -text \
                 | grep publicExponent \
                 | grep -oE "0x[a-f0-9]+" \
                 | cut -d'x' -f2 \
                 | hex2bin \
                 | urlbase64)
-    pub_mod64=$(openssl rsa -in "${skey}" -noout -modulus \
+    pub_mod64=$(gmssl rsa -in "${skey}" -noout -modulus \
                 | cut -d'=' -f2 \
                 | hex2bin \
                 | urlbase64)
@@ -903,11 +904,11 @@ get_signing_params() { # get signing parameters from key
     jwk='{"e":"'"${pub_exp64}"'","kty":"RSA","n":"'"${pub_mod64}"'"}'
     jwkalg="RS256"
     signalg="sha256"
-  elif openssl ec -in "${skey}" -noout 2>/dev/null ; then # Elliptic curve key.
+  elif gmssl ec -in "${skey}" -noout 2>/dev/null ; then # Elliptic curve key.
     echo "!!!! ec"
-    crv="$(openssl ec -in  "$skey" -noout -text 2>/dev/null | awk '$2 ~ "CURVE:" {print $3}')"
+    crv="$(gmssl ec -in  "$skey" -noout -text 2>/dev/null | awk '$2 ~ "CURVE:" {print $3}')"
     if [[ -z "$crv" ]]; then
-      gsp_keytype="$(openssl ec -in  "$skey" -noout -text 2>/dev/null \
+      gsp_keytype="$(gmssl ec -in  "$skey" -noout -text 2>/dev/null \
                      | grep "^ASN1 OID:" \
                      | awk '{print $3}')"
       case "$gsp_keytype" in
@@ -923,7 +924,7 @@ get_signing_params() { # get signing parameters from key
       P-521) jwkalg="ES512" ; signalg="sha512" ;;
       *) error_exit "invalid curve algorithm type $crv";;
     esac
-    pubtext="$(openssl ec  -in "$skey"  -noout -text 2>/dev/null \
+    pubtext="$(gmssl ec  -in "$skey"  -noout -text 2>/dev/null \
                | awk '/^pub:/{p=1;next}/^ASN1 OID:/{p=0}p' \
                | tr -d ": \n\r")"
     mid=$(( (${#pubtext} -2) / 2 + 2 ))
@@ -935,7 +936,7 @@ get_signing_params() { # get signing parameters from key
   else
     error_exit "Invalid key file"
   fi
-  thumbprint="$(printf "%s" "$jwk" | openssl dgst -sha256 -binary | urlbase64)"
+  thumbprint="$(printf "%s" "$jwk" | gmssl dgst -sha256 -binary | urlbase64)"
   debug "jwk alg = $jwkalg"
   debug "jwk = $jwk"
   debug "thumbprint $thumbprint"
@@ -1070,7 +1071,7 @@ revoke_certificate() { # revoke a certificate
   get_signing_params "$REVOKE_KEY"
   TEMP_DIR=$(mktemp -d)
   debug "revoking from $CA"
-  rcertdata=$(openssl x509 -in "$REVOKE_CERT" -inform PEM -outform DER | urlbase64)
+  rcertdata=$(gmssl x509 -in "$REVOKE_CERT" -inform PEM -outform DER | urlbase64)
   send_signed_request "$URL_revoke" "{\"resource\": \"revoke-cert\", \"certificate\": \"$rcertdata\"}"
   if [[ $code -eq "200" ]]; then
     info "certificate revoked"
@@ -1221,10 +1222,10 @@ sign_string() { # sign a string with a given key and algorithm and return urlbas
   key=$2
   signalg=$3
 
-  if openssl rsa -in "${skey}" -noout 2>/dev/null ; then # RSA key
-    signed64="$(printf '%s' "${str}" | openssl dgst -"$signalg" -sign "$key" | urlbase64)"
-  elif openssl ec -in "${skey}" -noout 2>/dev/null ; then # Elliptic curve key.
-    signed=$(printf '%s' "${str}" | openssl dgst -"$signalg" -sign "$key" -hex | awk '{print $2}')
+  if gmssl rsa -in "${skey}" -noout 2>/dev/null ; then # RSA key
+    signed64="$(printf '%s' "${str}" | gmssl dgst -"$signalg" -sign "$key" | urlbase64)"
+  elif gmssl ec -in "${skey}" -noout 2>/dev/null ; then # Elliptic curve key.
+    signed=$(printf '%s' "${str}" | gmssl dgst -"$signalg" -sign "$key" -hex | awk '{print $2}')
     debug "EC signature $signed"
     if [[ "${signed:4:4}" == "0220" ]]; then #sha256
       R=$(echo "$signed" | cut -c 9-72)
@@ -1284,7 +1285,7 @@ signal_exit() { # Handle trapped signals
 }
 
 urlbase64() { # urlbase64: base64 encoded string with '+' replaced with '-' and '/' replaced with '_'
-  openssl base64 -e | tr -d '\n\r' | os_esed -e 's:=*$::g' -e 'y:+/:-_:'
+  gmssl base64 -e | tr -d '\n\r' | os_esed -e 's:=*$::g' -e 'y:+/:-_:'
 }
 
 usage() { # echos out the program usage
@@ -1464,7 +1465,7 @@ get_os
 #check if required applications are included
 
 requires which
-requires openssl
+requires gmssl
 requires curl
 requires nslookup drill dig host DNS_CHECK_FUNC
 requires awk
@@ -1593,12 +1594,12 @@ if [[ ${_CREATE_CONFIG} -eq 1 ]]; then
     info "creating domain config file in $DOMAIN_DIR/getssl.cfg"
     # if domain has an existing cert, copy from domain and use to create defaults.
     EX_CERT=$(echo \
-      | openssl s_client -servername "${DOMAIN}" -connect "${DOMAIN}:443" 2>/dev/null \
-      | openssl x509 2>/dev/null)
+      | gmssl s_client -servername "${DOMAIN}" -connect "${DOMAIN}:443" 2>/dev/null \
+      | gmssl x509 2>/dev/null)
     EX_SANS="www.${DOMAIN}"
     if [[ ! -z "${EX_CERT}" ]]; then
       EX_SANS=$(echo "$EX_CERT" \
-        | openssl x509 -noout -text 2>/dev/null| grep "Subject Alternative Name" -A2 \
+        | gmssl x509 -noout -text 2>/dev/null| grep "Subject Alternative Name" -A2 \
         | grep -Eo "DNS:[a-zA-Z 0-9.-]*" | sed "s@DNS:$DOMAIN@@g" | grep -v '^$' | cut -c 5-)
       EX_SANS=${EX_SANS//$'\n'/','}
     fi
@@ -1653,29 +1654,29 @@ if [[ "${CHECK_REMOTE}" == "true" ]] && [[ $_FORCE_RENEW -eq 0 ]]; then
   debug "getting certificate for $DOMAIN from remote server"
   # shellcheck disable=SC2086
   EX_CERT=$(echo \
-    | openssl s_client -servername "${DOMAIN}" -connect "${DOMAIN}:${REMOTE_PORT}" ${REMOTE_EXTRA} 2>/dev/null \
-    | openssl x509 2>/dev/null)
+    | gmssl s_client -servername "${DOMAIN}" -connect "${DOMAIN}:${REMOTE_PORT}" ${REMOTE_EXTRA} 2>/dev/null \
+    | gmssl x509 2>/dev/null)
   if [[ ! -z "$EX_CERT" ]]; then # if obtained a cert
     if [[ -s "$CERT_FILE" ]]; then # if local exists
-      CERT_LOCAL=$(openssl x509 -noout -fingerprint < "$CERT_FILE" 2>/dev/null)
+      CERT_LOCAL=$(gmssl x509 -noout -fingerprint < "$CERT_FILE" 2>/dev/null)
     else # since local doesn't exist leave empty so that the domain validation will happen
       CERT_LOCAL=""
     fi
-    CERT_REMOTE=$(echo "$EX_CERT" | openssl x509 -noout -fingerprint 2>/dev/null)
+    CERT_REMOTE=$(echo "$EX_CERT" | gmssl x509 -noout -fingerprint 2>/dev/null)
     if [[ "$CERT_LOCAL" == "$CERT_REMOTE" ]]; then
       debug "certificate on server is same as the local cert"
     else
       # check if the certificate is for the right domain
-      EX_CERT_DOMAIN=$(echo "$EX_CERT" | openssl x509 -text \
+      EX_CERT_DOMAIN=$(echo "$EX_CERT" | gmssl x509 -text \
         | sed -n -e 's/^ *Subject: .* CN=\([A-Za-z0-9.-]*\).*$/\1/p; /^ *DNS:.../ { s/ *DNS://g; y/,/\n/; p; }' \
         | sort -u | grep "^$DOMAIN\$")
       if [[ "$EX_CERT_DOMAIN" == "$DOMAIN" ]]; then
         # check renew-date on ex_cert and compare to local ( if local exists)
-        enddate_ex=$(echo "$EX_CERT" | openssl x509 -noout -enddate 2>/dev/null| cut -d= -f 2-)
+        enddate_ex=$(echo "$EX_CERT" | gmssl x509 -noout -enddate 2>/dev/null| cut -d= -f 2-)
         enddate_ex_s=$(date_epoc "$enddate_ex")
         debug "external cert has enddate $enddate_ex ( $enddate_ex_s ) "
         if [[ -s "$CERT_FILE" ]]; then # if local exists
-          enddate_lc=$(openssl x509 -noout -enddate < "$CERT_FILE" 2>/dev/null| cut -d= -f 2-)
+          enddate_lc=$(gmssl x509 -noout -enddate < "$CERT_FILE" 2>/dev/null| cut -d= -f 2-)
           enddate_lc_s=$(date_epoc "$enddate_lc")
           debug "local cert has enddate $enddate_lc ( $enddate_lc_s ) "
         else
@@ -1724,12 +1725,12 @@ fi
 # if there is an existing certificate file, check details.
 if [[ -s "$CERT_FILE" ]]; then
   debug "certificate $CERT_FILE exists"
-  enddate=$(openssl x509 -in "$CERT_FILE" -noout -enddate 2>/dev/null| cut -d= -f 2-)
+  enddate=$(gmssl x509 -in "$CERT_FILE" -noout -enddate 2>/dev/null| cut -d= -f 2-)
   debug "local cert is valid until $enddate"
   if [[ "$enddate" != "-" ]]; then
     enddate_s=$(date_epoc "$enddate")
     if [[ $(date_renew) -lt "$enddate_s" ]] && [[ $_FORCE_RENEW -ne 1 ]]; then
-      issuer=$(openssl x509 -in "$CERT_FILE" -noout -issuer 2>/dev/null)
+      issuer=$(gmssl x509 -in "$CERT_FILE" -noout -issuer 2>/dev/null)
       if [[ "$issuer" == *"Fake LE Intermediate"* ]] && [[ "$CA" == "https://acme-v01.api.letsencrypt.org" ]]; then
         debug "upgradeing from fake cert to real"
       else
@@ -1872,8 +1873,8 @@ for d in $alldomains; do
       debug keyauthorization "$keyauthorization"
 
       #create signed authorization key from token.
-      auth_key=$(printf '%s' "$keyauthorization" | openssl dgst -sha256 -binary \
-                 | openssl base64 -e \
+      auth_key=$(printf '%s' "$keyauthorization" | gmssl dgst -sha256 -binary \
+                 | gmssl base64 -e \
                  | tr -d '\n\r' \
                  | sed -e 's:=*$::g' -e 'y:+/:-_:')
       debug auth_key "$auth_key"
@@ -2168,9 +2169,9 @@ if [[ ${CHECK_REMOTE} == "true" ]]; then
   sleep "$CHECK_REMOTE_WAIT"
   # shellcheck disable=SC2086
   CERT_REMOTE=$(echo \
-    | openssl s_client -servername "${DOMAIN}" -connect "${DOMAIN}:${REMOTE_PORT}" ${REMOTE_EXTRA} 2>/dev/null \
-    | openssl x509 -noout -fingerprint 2>/dev/null)
-  CERT_LOCAL=$(openssl x509 -noout -fingerprint < "$CERT_FILE" 2>/dev/null)
+    | gmssl s_client -servername "${DOMAIN}" -connect "${DOMAIN}:${REMOTE_PORT}" ${REMOTE_EXTRA} 2>/dev/null \
+    | gmssl x509 -noout -fingerprint 2>/dev/null)
+  CERT_LOCAL=$(gmssl x509 -noout -fingerprint < "$CERT_FILE" 2>/dev/null)
   if [[ "$CERT_LOCAL" == "$CERT_REMOTE" ]]; then
     info "${DOMAIN} - certificate installed OK on server"
   else
