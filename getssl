@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# getssl - Obtain SSL certificates from the letsencrypt.org ACME server
+# getssl - Obtain SM2 SSL certificates from the ca.gmssl.org ACME server
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # GNU General Public License at <http://www.gnu.org/licenses/> for
 # more details.
 
-# For usage, run "getssl -h" or see https://github.com/srvrco/getssl
+# For usage, run "getssl -h" or see https://github.com/lianran/GmSSL-WebCA-Client
 
 # Revision history:
 # 2016-01-08 Created (v0.1)
@@ -198,7 +198,7 @@ CHALLENGE_CHECK_TYPE="http"
 CHECK_ALL_AUTH_DNS="false"
 CHECK_REMOTE="true"
 CHECK_REMOTE_WAIT=0
-CODE_LOCATION="https://raw.githubusercontent.com/srvrco/getssl/master/getssl"
+CODE_LOCATION="https://raw.githubusercontent.com/lianran/GmSSL-WebCA-Client/master/getssl"
 CSR_SUBJECT="/"
 DEACTIVATE_AUTH="false"
 DEFAULT_REVOKE_CA="https://acme-v01.api.letsencrypt.org"
@@ -1295,8 +1295,8 @@ usage() { # echos out the program usage
 write_domain_template() { # write out a template file for a domain.
   cat > "$1" <<- _EOF_domain_
 	# Uncomment and modify any variables you need
-	# see https://github.com/srvrco/getssl/wiki/Config-variables for details
-	# see https://github.com/srvrco/getssl/wiki/Example-config-files for example configs
+	# see https://github.com/lianran/GmSSL-WebCA-Client/wiki/Config-variables for details
+	# see https://github.com/lianran/GmSSL-WebCA-Client/wiki/Example-config-files for example configs
 	#
 	# The staging server is best for testing
 	#CA="https://acme-staging.api.letsencrypt.org"
@@ -1351,7 +1351,7 @@ write_domain_template() { # write out a template file for a domain.
 write_getssl_template() { # write out the main template file
   cat > "$1" <<- _EOF_getssl_
 	# Uncomment and modify any variables you need
-	# see https://github.com/srvrco/getssl/wiki/Config-variables for details
+	# see https://github.com/lianran/GmSSL-WebCA-Client/wiki/Config-variables for details
 	#
 	# The staging server is best for testing (hence set as default)
 	CA="https://acme-staging.api.letsencrypt.org"
