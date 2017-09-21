@@ -11,7 +11,7 @@ This doc just a simple guide to obtain SSL SM2 cert and you can learn how to use
 You'll find the latest version in the git repository:
 
 ```
-git clone https://github.com/lianran/get-sm2-cert.git
+git clone https://github.com/lianran/GmSSL-WebCA-Client.git
 ```
 
 In addition you must install the GmSSL and you can find the guide from [here](http://gmssl.org).
@@ -36,7 +36,6 @@ where yourdomain.com is the primary domain name that you want to create a certif
 You can then edit ~/.getssl/getssl.cfg to set the values you want as the default for the majority of your certificates.
 
 Then edit ~/.getssl/yourdomain.com/getssl.cfg to have the values you want for this specific domain (make sure to uncomment and specify correct `ACL` option, since it is required).
-
 
 You can then just run;
 
