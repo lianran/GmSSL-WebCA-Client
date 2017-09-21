@@ -211,7 +211,7 @@ HTTP_TOKEN_CHECK_WAIT=0
 IGNORE_DIRECTORY_DOMAIN="false"
 ORIG_UMASK=$(umask)
 PREVIOUSLY_VALIDATED="true"
-PRIVATE_KEY_ALG="rsa"
+PRIVATE_KEY_ALG="sm2p256v1"
 PUBLIC_DNS_SERVER=""
 RELOAD_CMD=""
 RENEW_ALLOW="30"
@@ -1303,15 +1303,15 @@ write_domain_template() { # write out a template file for a domain.
 	#CA="https://acme-staging.api.letsencrypt.org"
 	# This server issues full certificates, however has rate limits
 	#CA="https://acme-v01.api.letsencrypt.org"
-	CA="http://ca.gmssl.org:4000"
+	CA="http://182.92.77.72:4000"
 
 	#PRIVATE_KEY_ALG="rsa"
 
 	# Additional domains - this could be multiple domains / subdomains in a comma separated list
 	# Note: this is Additional domains - so should not include the primary domain.
 	SANS="${EX_SANS}"
-	DUAL_RSA_ECDSA="true"
-	PRIVATE_KEY_ALG="sm2p256v1"
+	#DUAL_RSA_ECDSA="true"
+	#PRIVATE_KEY_ALG="sm2p256v1"
 
 	# Acme Challenge Location. The first line for the domain, the following ones for each additional domain.
 	# If these start with ssh: then the next variable is assumed to be the hostname and the rest the location.
@@ -1355,7 +1355,7 @@ write_getssl_template() { # write out the main template file
 	# see https://github.com/lianran/GmSSL-WebCA-Client/wiki/Config-variables for details
 	#
 	# The staging server is best for testing (hence set as default)
-	CA="https://acme-staging.api.letsencrypt.org"
+	#CA="https://acme-staging.api.letsencrypt.org"
 	# This server issues full certificates, however has rate limits
 	#CA="https://acme-v01.api.letsencrypt.org"
 
@@ -1365,7 +1365,7 @@ write_getssl_template() { # write out the main template file
 	#ACCOUNT_EMAIL="me@example.com"
 	ACCOUNT_KEY_LENGTH=4096
 	ACCOUNT_KEY="$WORKING_DIR/account.key"
-	PRIVATE_KEY_ALG="rsa"
+	#PRIVATE_KEY_ALG="sm2p256v1"
 	#REUSE_PRIVATE_KEY="true"
 
 	# The command needed to reload apache / nginx or whatever you use
@@ -1379,7 +1379,7 @@ write_getssl_template() { # write out the main template file
 	# will be checked for certificate expiry and also will be checked after
 	# an update to confirm correct certificate is running (if CHECK_REMOTE) is set to true
 	SERVER_TYPE="https"
-	CHECK_REMOTE="true"
+4	CHECK_REMOTE="false"
 
 	# Use the following 3 variables if you want to validate via DNS
 	#VALIDATE_VIA_DNS="true"
@@ -1772,7 +1772,9 @@ fi
 if [[ "$DUAL_RSA_ECDSA" == "false" ]]; then
   create_key "${PRIVATE_KEY_ALG}" "$DOMAIN_DIR/${DOMAIN}.key" "$DOMAIN_KEY_LENGTH"
 else
+  _QUIET=1
   create_key "rsa" "$DOMAIN_DIR/${DOMAIN}.key" "$DOMAIN_KEY_LENGTH"
+  _QUIET=0
   create_key "${PRIVATE_KEY_ALG}" "$DOMAIN_DIR/${DOMAIN}.ec.key" "$DOMAIN_KEY_LENGTH"
 fi
 # End of creating domain keys.
@@ -1791,7 +1793,9 @@ debug "created SAN list = $SANLIST"
 if [[ "$DUAL_RSA_ECDSA" == "false" ]]; then
   create_csr "$DOMAIN_DIR/${DOMAIN}.csr" "$DOMAIN_DIR/${DOMAIN}.key" "rsa"
 else
+  _QUIET=1
   create_csr "$DOMAIN_DIR/${DOMAIN}.csr" "$DOMAIN_DIR/${DOMAIN}.key" "rsa"
+  _QUIET=0
   create_csr "$DOMAIN_DIR/${DOMAIN}.ec.csr" "$DOMAIN_DIR/${DOMAIN}.ec.key" "${PRIVATE_KEY_ALG}"
 fi
 
@@ -2060,10 +2064,12 @@ fi
 # Verification has been completed for all SANS, so  request certificate.
 info "Verification completed, obtaining certificate."
 
+_QUIET=1
 #obtain the certificate.
 get_certificate "$DOMAIN_DIR/${DOMAIN}.csr" \
                 "$CERT_FILE" \
                 "$CA_CERT"
+_QUIET=0
 if [[ "$DUAL_RSA_ECDSA" == "true" ]]; then
   get_certificate "$DOMAIN_DIR/${DOMAIN}.ec.csr" \
                   "${CERT_FILE::-4}.ec.crt" \
@@ -2077,9 +2083,16 @@ debug "Certificates obtained and archived locally, will now copy to specified lo
 
 # copy certs to the correct location (creating concatenated files as required)
 
-copy_file_to_location "domain certificate" "$CERT_FILE" "$DOMAIN_CERT_LOCATION"
-copy_file_to_location "private key" "$DOMAIN_DIR/${DOMAIN}.key" "$DOMAIN_KEY_LOCATION"
-copy_file_to_location "CA certificate" "$CA_CERT" "$CA_CERT_LOCATION"
+#copy_file_to_location "domain certificate" "$CERT_FILE" "$DOMAIN_CERT_LOCATION"
+#copy_file_to_location "private key" "$DOMAIN_DIR/${DOMAIN}.key" "$DOMAIN_KEY_LOCATION"
+#copy_file_to_location "CA certificate" "$CA_CERT" "$CA_CERT_LOCATION"
+
+##remove the rsa's everything
+rm $DOMAIN_DIR/${DOMAIN}.csr
+rm $DOMAIN_DIR/${DOMAIN}.key
+rm $DOMAIN_DIR/${DOMAIN}.crt
+rm $DOMAIN_DIR/chain.crt
+
 if [[ "$DUAL_RSA_ECDSA" == "true" ]]; then
   if [[ ! -z "$DOMAIN_CERT_LOCATION" ]]; then
     copy_file_to_location "ec domain certificate" \
