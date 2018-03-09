@@ -1497,9 +1497,6 @@ if [[ $_REVOKE -eq 1 ]]; then
   graceful_exit
 fi
 
-# get latest agreement from CA (as default)
-AGREEMENT=$(curl -I "${CA}/terms" 2>/dev/null | awk '$1 ~ "Location:" {print $2}'|tr -d '\r')
-
 # if nothing in command line, print help and exit.
 if [[ -z "$DOMAIN" ]] && [[ ${_CHECK_ALL} -ne 1 ]]; then
   help_message
@@ -1803,13 +1800,8 @@ fi
 # currently the code registers every time, and gets an "already registered" back if it has been.
 get_signing_params "$ACCOUNT_KEY"
 
-#if the agreement is not got from the internet, we manually set it 
-if [[ "$AGREEMENT" == "" ]] ; then
-  #AGREEMENT="http://boulder:4000/terms/v1"
-  echo "can't the agreement and give some value to it"
-  AGREEMENT=$CA"/terms/v1"
-  echo $AGREEMENT
-fi
+# get latest agreement from CA (as default)
+AGREEMENT=$(curl -I "${CA}/terms" 2>/dev/null | awk '$1 ~ "Location:" {print $2}'|tr -d '\r')
 
 if [[ "$ACCOUNT_EMAIL" ]] ; then
   regjson='{"resource": "new-reg", "contact": ["mailto: '$ACCOUNT_EMAIL'"], "agreement": "'$AGREEMENT'"}'
