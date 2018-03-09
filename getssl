@@ -1379,7 +1379,7 @@ write_getssl_template() { # write out the main template file
 	# will be checked for certificate expiry and also will be checked after
 	# an update to confirm correct certificate is running (if CHECK_REMOTE) is set to true
 	SERVER_TYPE="https"
-4	CHECK_REMOTE="false"
+	CHECK_REMOTE="false"
 
 	# Use the following 3 variables if you want to validate via DNS
 	#VALIDATE_VIA_DNS="true"
@@ -1803,6 +1803,14 @@ fi
 # currently the code registers every time, and gets an "already registered" back if it has been.
 get_signing_params "$ACCOUNT_KEY"
 
+#if the agreement is not got from the internet, we manually set it 
+if [[ "$AGREEMENT" == "" ]] ; then
+  #AGREEMENT="http://boulder:4000/terms/v1"
+  echo "can't the agreement and give some value to it"
+  AGREEMENT=$CA"/terms/v1"
+  echo $AGREEMENT
+fi
+
 if [[ "$ACCOUNT_EMAIL" ]] ; then
   regjson='{"resource": "new-reg", "contact": ["mailto: '$ACCOUNT_EMAIL'"], "agreement": "'$AGREEMENT'"}'
 else
@@ -1812,6 +1820,8 @@ fi
 info "Registering account"
 # send the request to the ACME server.
 send_signed_request   "$URL_new_reg"  "$regjson"
+
+
 
 if [[ "$code" == "" ]] || [[ "$code" == '201' ]] ; then
   info "Registered"
